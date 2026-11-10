@@ -1,0 +1,175 @@
+---
+title: "Indicadores da Política Nacional de Desenvolvimento de Pessoas"
+author: "MGI - SGP/DIGID/CGINF"
+date: "`r format(Sys.Date(),'%d de %B de %Y')`"
+output:
+  html_document: 
+    toc: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+```{r pkgs, include = F,warning = F, message=F}
+library(dplyr)
+library(readxl)
+library(data.table)
+library(flextable)
+library(ggplot2)
+library(plotly)
+source("../utils/utils_pfgp.R")
+```
+
+
+
+```{r setup, include = F,warning = F, message=F}
+### opções de tamanhos das figuras
+fw <- 12
+fh <- 12
+
+### opções de chunk
+knitr::opts_chunk$set(list(warning = FALSE,
+                           message = FALSE,
+                           error = FALSE,
+                           echo = FALSE,
+                           fig.width = fw,
+                           fig.height = fh#,
+                           # dev = c('png','svg')
+                           )
+                      )
+
+
+### opções de tamanhos de texto dos itens (eixo, legendas, etc)
+txt_size <- 18
+
+### opção de tamanho de texto no label (geom_text)
+txt_geom_size <- 3
+```
+
+
+```{r data}
+## lista de arquivos
+arquivos_pndp <- list.files('../data',pattern = "PDP",full.names = T)
+
+## carregando arquivos
+sapply(arquivos_pndp,function(fl_path){
+  read_excel(fl_path,sheet = "Sheet1",skip = 1) %>% 
+  janitor::clean_names() %>% 
+  setDT()
+  },simplify = F) %>% 
+  rbindlist(idcol = 'ano',fill = T) %>% 
+  .[,ano := gsub(".*PDP|\\.xlsx","",ano)]-> pdp_list
+
+
+## totais de órgãos
+lista_orgaos <- readRDS("../data/lista_orgaos_tab.rds")
+lista_orgaos[,ano := substr(compet,1,4)]
+```
+
+
+#  Número de necessidades de desenvolvimento (específicas e transversais)
+
+
+```{r data_necessidade}
+pdp_list %>% 
+  filter(analisada_priorizada_ifgp %in% "Sim"#,
+         # !acao_de_revisao %in% "-"
+         ) %>% 
+  mutate(
+    tipo_necessidade = ifelse(essa_necessidade_de_desenvolvimento_e_recorrente_ifgp_1 %in% "Sim",
+                              "Transversais",
+                              "Específicas (não transversais)")
+  ) %>% 
+  group_by(ano,tipo_necessidade) %>% 
+  summarise(necessidades = n()) %>% 
+  ungroup %>% 
+  setDT() -> tab_necessidades
+```
+
+A tabela e o gráfico a seguir apresentam os totais de necessidades cadastradas e validadas.
+
+```{r tab_necessidade}
+tab_necessidades %>% 
+  dcast(ano ~ tipo_necessidade,value.var = "necessidades") %>% 
+  flextable(cwidth = 2.5) %>% 
+  theme_vanilla() %>% 
+  width("ano",.1) %>% 
+  colformat_num(big.mark = ".") %>% 
+  colformat_double(big.mark = ".",decimal.mark = ",")
+```
+
+```{r graph_necessidade}
+tab_necessidades %>% 
+  copy %>% 
+  .[,ano := as.numeric(ano)] %>% 
+  ggplot_cat(
+    aes(x = ano,
+        y = necessidades,
+        col = tipo_necessidade)
+  ) + 
+  geom_point(size = 2.2) + 
+  geom_line(size = 0.9) + 
+  labs(title = "Total de necessidades cadastradas e validadas",
+       subtitle = "Por tipo de necessidade",
+       y = "Total de necessidades",
+       x = "Ano",
+       col = NULL) -> p_nec
+
+ggplotly_c(p_nec)
+```
+
+
+# Necessidades atentidas
+
+
+# Órgãos com PDP
+
+```{r join_tot_orgaos}
+right_join(
+  # total de órgãos no SIAPE
+  lista_orgaos[,.(`Total de órgãos` = n_distinct(sg_orgao)),
+               .(ano)],
+  
+  # órgãos com PDP validaddo
+  pdp_list[,
+           .(`Órgãos com PDP aprovado` = n_distinct(nome_do_orgao)),
+           .(ano)],
+  
+  by = "ano"
+  ) -> tot_orgaos_pdp
+
+tot_orgaos_pdp[,`Percentual de órgãos com PDP aprovado` := round(100*`Órgãos com PDP aprovado`/`Total de órgãos`,1)]
+```
+
+
+A tabela e o gráfico a seguir apresentam os totais de órgãos com necessidades cadastradas e validadas e o respectivo percentual.
+
+```{r tab_orgaos_pdp}
+tot_orgaos_pdp %>% 
+  flextable(cwidth = 2.5) %>% 
+  theme_vanilla() %>% 
+  width("ano",.1) %>% 
+  colformat_num(big.mark = ".") %>% 
+  colformat_double(big.mark = ".",decimal.mark = ",")
+```
+
+
+
+```{r graph_orgaos_pdp}
+tot_orgaos_pdp %>% 
+  copy %>% 
+  .[,ano := as.numeric(ano)] %>% 
+  ggplot_cat(
+    aes(x = ano,
+        y = `Percentual de órgãos com PDP aprovado`)
+  ) + 
+  geom_point(size = 2.2,col = .pal_complementar['principal']) + 
+  geom_line(size = 0.9,col = .pal_complementar['principal']) + 
+  # ylim(c(0,100)) +
+  labs(title = "Percentual de órgãos com PDP aprovado",
+       y = "%",
+       x = "Ano") -> p_org_pdp
+
+ggplotly_c(p_org_pdp)
+```
