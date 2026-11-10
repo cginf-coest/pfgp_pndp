@@ -26,7 +26,7 @@ source("../utils/utils_pfgp.R")
 ```{r setup, include = F,warning = F, message=F}
 ### opções de tamanhos das figuras
 fw <- 12
-fh <- 12
+fh <- 6
 
 ### opções de chunk
 knitr::opts_chunk$set(list(warning = FALSE,
@@ -67,6 +67,11 @@ lista_orgaos <- readRDS("../data/lista_orgaos_tab.rds")
 lista_orgaos[,ano := substr(compet,1,4)]
 ```
 
+# Introdução
+
+Este página apresenta algumas visualizações complementares sobre a Política Nacional de Desenvolvimento de Pessoas (PNDP), no âmbito do monitoramento do Plano Federal de Gestão de Pessoas (PFGP).
+
+Mais detalhes sobre a implementação e execução do PNDP podem ser encontrados no [painel desenvolvido pela DECAR](https://app.powerbi.com/view?r=eyJrIjoiN2ViYzYyNjEtMGI3My00MmZjLWFjZDktM2MwZjAzNDk5ZmFjIiwidCI6IjQ1NjIxM2NmLTcwNzMtNDdjNi1iZjQ5LTQxYjY1NGFkNDQ5YiJ9)
 
 #  Número de necessidades de desenvolvimento (específicas e transversais)
 
