@@ -25,8 +25,8 @@ source("../utils/utils_pfgp.R")
 
 ```{r setup, include = F,warning = F, message=F}
 ### opções de tamanhos das figuras
-fw <- 12
-fh <- 6
+fw <- 9
+fh <- 3
 
 ### opções de chunk
 knitr::opts_chunk$set(list(warning = FALSE,
@@ -61,6 +61,14 @@ sapply(arquivos_pndp,function(fl_path){
   rbindlist(idcol = 'ano',fill = T) %>% 
   .[,ano := gsub(".*PDP|\\.xlsx","",ano)]-> pdp_list
 
+## ajustes nos dados pdp
+pdp_list[,`:=`(tem_acao = !is.na(acao_de_desenvolvimento),
+               tem_esc_governo = !escola_de_governo %in% c(NA,"[]",""),
+               pode_ser_esc_governo = !grepl("sim",pode_ser_ofertada_pela_escola_de_governo_propria_do_orgao_da_entidade_ifgp_5,
+                                             ignore.case = T),
+               validadas =  analisada_priorizada_ifgp %in% "Sim"
+               )]
+
 
 ## totais de órgãos
 lista_orgaos <- readRDS("../data/lista_orgaos_tab.rds")
@@ -73,62 +81,10 @@ Este página apresenta algumas visualizações complementares sobre a Política 
 
 Mais detalhes sobre a implementação e execução do PNDP podem ser encontrados no [painel desenvolvido pela DECAR](https://app.powerbi.com/view?r=eyJrIjoiN2ViYzYyNjEtMGI3My00MmZjLWFjZDktM2MwZjAzNDk5ZmFjIiwidCI6IjQ1NjIxM2NmLTcwNzMtNDdjNi1iZjQ5LTQxYjY1NGFkNDQ5YiJ9)
 
-#  Número de necessidades de desenvolvimento (específicas e transversais)
 
 
-```{r data_necessidade}
-pdp_list %>% 
-  filter(analisada_priorizada_ifgp %in% "Sim"#,
-         # !acao_de_revisao %in% "-"
-         ) %>% 
-  mutate(
-    tipo_necessidade = ifelse(essa_necessidade_de_desenvolvimento_e_recorrente_ifgp_1 %in% "Sim",
-                              "Transversais",
-                              "Específicas (não transversais)")
-  ) %>% 
-  group_by(ano,tipo_necessidade) %>% 
-  summarise(necessidades = n()) %>% 
-  ungroup %>% 
-  setDT() -> tab_necessidades
-```
+# Órgãos com PDP aprovado
 
-A tabela e o gráfico a seguir apresentam os totais de necessidades cadastradas e validadas.
-
-```{r tab_necessidade}
-tab_necessidades %>% 
-  dcast(ano ~ tipo_necessidade,value.var = "necessidades") %>% 
-  flextable(cwidth = 2.5) %>% 
-  theme_vanilla() %>% 
-  width("ano",.1) %>% 
-  colformat_num(big.mark = ".") %>% 
-  colformat_double(big.mark = ".",decimal.mark = ",")
-```
-
-```{r graph_necessidade}
-tab_necessidades %>% 
-  copy %>% 
-  .[,ano := as.numeric(ano)] %>% 
-  ggplot_cat(
-    aes(x = ano,
-        y = necessidades,
-        col = tipo_necessidade)
-  ) + 
-  geom_point(size = 2.2) + 
-  geom_line(size = 0.9) + 
-  labs(title = "Total de necessidades cadastradas e validadas",
-       subtitle = "Por tipo de necessidade",
-       y = "Total de necessidades",
-       x = "Ano",
-       col = NULL) -> p_nec
-
-ggplotly_c(p_nec)
-```
-
-
-# Necessidades atentidas
-
-
-# Órgãos com PDP
 
 ```{r join_tot_orgaos}
 right_join(
@@ -149,6 +105,7 @@ tot_orgaos_pdp[,`Percentual de órgãos com PDP aprovado` := round(100*`Órgãos
 
 
 A tabela e o gráfico a seguir apresentam os totais de órgãos com necessidades cadastradas e validadas e o respectivo percentual.
+
 
 ```{r tab_orgaos_pdp}
 tot_orgaos_pdp %>% 
@@ -174,7 +131,197 @@ tot_orgaos_pdp %>%
   # ylim(c(0,100)) +
   labs(title = "Percentual de órgãos com PDP aprovado",
        y = "%",
-       x = "Ano") -> p_org_pdp
+       x = NULL) -> p_org_pdp
 
 ggplotly_c(p_org_pdp)
 ```
+
+
+#  Necessidades de desenvolvimento (específicas e transversais)
+
+
+```{r data_necessidade}
+pdp_list %>% 
+  filter(analisada_priorizada_ifgp %in% "Sim"#,
+         # !acao_de_revisao %in% "-"
+         ) %>% 
+  mutate(
+    tipo_necessidade = ifelse(essa_necessidade_de_desenvolvimento_e_recorrente_ifgp_1 %in% "Sim",
+                              "Transversais",
+                              "Específicas (não transversais)")
+  ) %>% 
+  group_by(ano,tipo_necessidade) %>% 
+  summarise(necessidades = n()) %>% 
+  ungroup %>% 
+  setDT() -> tab_necessidades
+```
+
+
+A tabela e o gráfico a seguir apresentam os totais de necessidades cadastradas e validadas.
+
+
+```{r tab_necessidade}
+tab_necessidades %>% 
+  dcast(ano ~ tipo_necessidade,value.var = "necessidades") %>% 
+  flextable(cwidth = 2.5) %>% 
+  theme_vanilla() %>% 
+  width("ano",.1) %>% 
+  colformat_num(big.mark = ".") %>% 
+  colformat_double(big.mark = ".",decimal.mark = ",")
+```
+
+
+```{r graph_necessidade}
+tab_necessidades %>% 
+  copy %>% 
+  .[,ano := as.numeric(ano)] %>% 
+  ggplot_cat(
+    aes(x = ano,
+        y = necessidades,
+        col = tipo_necessidade)
+  ) + 
+  geom_point(size = 2.2) + 
+  geom_line(size = 0.9) + 
+  labs(title = "Total de necessidades cadastradas e validadas",
+       subtitle = "Por tipo de necessidade",
+       y = "Total de necessidades",
+       x = NULL,
+       col = NULL) -> p_nec
+
+ggplotly_c(p_nec)
+```
+
+
+Considerando o contexto de necesssidades transversais, foi analisado o percentual destas que possuem devolutivas, isto é, das necessidades cadastradas que i) têm regisro de ação de desenvolvimento e ii) têm registro de escolas de governo que podem ofertar tais ações. 
+
+
+```{r data_devolutivas}
+pdp_list %>% 
+  filter(analisada_priorizada_ifgp %in% "Sim",
+         essa_necessidade_de_desenvolvimento_e_recorrente_ifgp_1 %in% "Sim") %>% 
+  group_by(ano) %>% 
+  summarise(`Necessidades transversais` = n(),
+            `Necessidades transversais com devolutivas` = sum(tem_acao & tem_esc_governo)) %>% 
+  ungroup %>% 
+  setDT %>% 
+  .[,`Percentual com devolutivas` :=  round(100*`Necessidades transversais com devolutivas`/`Necessidades transversais`,
+                                            1)]-> tab_devolutiva
+```
+
+
+
+```{r tab_devolutivas}
+tab_devolutiva %>% 
+  # dcast(ano ~ tipo_necessidade,value.var = "necessidades") %>% 
+  flextable(cwidth = 2.5) %>% 
+  theme_vanilla() %>% 
+  width("ano",.1) %>% 
+  colformat_num(big.mark = ".") %>% 
+  colformat_double(big.mark = ".",decimal.mark = ",")
+```
+
+
+```{r graph_devolutiva}
+tab_devolutiva %>% 
+  copy %>% 
+  .[,ano := as.numeric(ano)] %>% 
+  ggplot_cat(
+    aes(x = ano,
+        y = `Percentual com devolutivas`)
+    ) + 
+  geom_point(size = 2.2) + 
+  geom_line(size = 0.9) + 
+  labs(title = "Percentual de necessidades transversais com devolutiva",
+       y = "Percentual",
+       x = NULL,
+       col = NULL) -> p_devo
+
+ggplotly_c(p_devo)
+```
+
+
+# Atendimento de necessidades e demandas
+
+```{r data_atendimento}
+pdp_list[(validadas),
+         .(`Necessidades validaddas` = .N,
+           `Necessidades executadas` = sum(recebeu_acao_de_desenvolvimento %in% "Sim"),
+           `Necessidades não executadas` = sum(recebeu_acao_de_desenvolvimento %in% "Não"),
+           `Necessidades sem informação de execução` = sum(!recebeu_acao_de_desenvolvimento %in% c("Sim","Não")),
+           `Participação prevista` = sum(agentes_publicos,na.rm = T),
+           `Participação efetiva` = sum(quantidade_de_servidores_que_participaram_da_acao,na.rm = T)),
+         .(ano)] %>% 
+  .[,`:=`(
+    `Percentual de necessidades atendidas` = round(100*`Necessidades executadas`/`Necessidades validaddas`,1),
+    `Percentual de demandas atendidas` = round(100*`Participação efetiva`/`Participação prevista`,1)
+  )]-> tab_atendimento
+```
+
+O gráfico e a tabela a seguir apresentam os percentuais de necessidades validadas que foram atendidas. Entende-se como necessidade atendida aquela que possui registro de execução de pelo menos uma ação de desenolvimento.
+
+
+```{r tab_nec_atendidas}
+tab_atendimento %>% 
+  select(ano,matches("necessidades")) %>% 
+  flextable(cwidth = 2.5) %>% 
+  theme_vanilla() %>% 
+  width("ano",.1) %>% 
+  colformat_num(big.mark = ".") %>% 
+  colformat_double(big.mark = ".",decimal.mark = ",")
+```
+
+
+
+```{r graph_nec_atendidas}
+tab_atendimento %>% 
+  copy %>% 
+  .[,ano := as.numeric(ano)] %>% 
+  ggplot_cat(
+    aes(x = ano,
+        y = `Percentual de necessidades atendidas`)
+    ) + 
+  geom_point(size = 2.2) + 
+  geom_line(size = 0.9) + 
+  labs(title = "Percentual de necessidades atendidas",
+       y = "Percentual",
+       x = NULL,
+       col = NULL) -> p_nec_atendida
+
+ggplotly_c(p_nec_atendida)
+```
+
+
+O gráfico e a tabela a seguir apresentam, por sua vez, os percentuais de demandas de desenvolvimento atendidas. Trata-se da razão entre o número de participações efetivas nas ações executadas e o total de participações previstas, multiplicada por 100.
+
+
+
+```{r tab_dem_atendidas}
+tab_atendimento %>% 
+  select(ano,matches("partic|demand")) %>% 
+  flextable(cwidth = 2.5) %>% 
+  theme_vanilla() %>% 
+  width("ano",.1) %>% 
+  colformat_num(big.mark = ".") %>% 
+  colformat_double(big.mark = ".",decimal.mark = ",")
+```
+
+
+
+```{r graph_dem_atendidas}
+tab_atendimento %>% 
+  copy %>% 
+  .[,ano := as.numeric(ano)] %>% 
+  ggplot_cat(
+    aes(x = ano,
+        y = `Percentual de demandas atendidas`)
+    ) + 
+  geom_point(size = 2.2) + 
+  geom_line(size = 0.9) + 
+  labs(title = "Percentual de demanda atendida",
+       y = "Percentual",
+       x = NULL,
+       col = NULL) -> p_dem_atendida
+
+ggplotly_c(p_dem_atendida)
+```
+
